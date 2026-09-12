@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
@@ -96,8 +97,8 @@ app.post('/api/items/seed', async (req, res) => {
                 const defaultItems = [
                         {
                                 name: 'Bottled Water',
-                                price: 200,
-                                stock: 50
+                                price: 250,
+                                stock: 200
                         },
                         {
                                 name: 'Bread',
@@ -112,8 +113,17 @@ app.post('/api/items/seed', async (req, res) => {
                         {
                                 name: 'Instant Noodles',
                                 price: 250,
-                                stock: 30
-                        }
+                                stock: 50
+                        },
+                        {       name: 'milk',
+                                price: 800,
+                                stock: 19
+                        },
+                        {       name: 'spaghetti',
+                                price: 1800,
+                                stock: 70
+                        }    
+                
                 ];
 
                 await Item.insertMany(defaultItems);
@@ -234,37 +244,37 @@ app.get('/api/reports/daily', async (req, res) => {
 });
 
 // --- 5. CREATE ADMIN USER --- //                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-  async function createAdmin() {
+
+async function createAdmin() {
         try {
                 const existingUser = await User.findOne({
-                                username: 'CHIZITELUM'
+                        username: 'CHIZITELUM'
+                });
+
+                if (!existingUser) {
+
+                        await User.create({
+                                username: 'CHIZITELUM',
+                                password: 'pass123'
                         });
 
-                        if (!existingUser) {
+                        console.log('Admin user created successfully!');
 
-                                await User.create({
-                                        username: 'CHIZITELUM',
-                                        password: 'pass123'
-                                });
+                } else {
 
-                                console.log('Admin user created successfully!');
+                        console.log('Admin user already exists.');
 
-                        } else {
-
-                                console.log('Admin user already exists.');
-
-                        }
-
-                } catch (err) {
-                        console.error(
-                                'Error creating admin user:',
-                                err.message
-                        );
-
-                        throw err;
                 }
+
+        } catch (err) {
+                console.error(
+                        'Error creating admin user:',
+                        err.message
+                );
+
+                throw err;
         }
+}
 
 
 // --- 6. SEED DEFAULT ITEMS --- //
@@ -318,6 +328,13 @@ async function seedItems() {
 
 // --- 7. START SERVER --- //
 
+const frontendPath = path.join(__dirname, '../client/pos/dist');
+
+app.use(express.static(frontendPath));
+
+app.use((req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+    }); 
 const PORT = process.env.PORT || 10000;
 
 async function startServer() {
@@ -363,4 +380,3 @@ async function startServer() {
 
 // Start application
 startServer();
-
