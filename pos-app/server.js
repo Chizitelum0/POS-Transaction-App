@@ -1,8 +1,9 @@
-const bcrypt = require('bcrypt');
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const User = require('./models/User');
@@ -11,9 +12,53 @@ const Transaction = require('./models/Transaction');
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json()); 
 app.use(cors());
 
+const JWT_SECRET =
+process.env.JWT_SECRET;
+
+// --- AUTHENTICATION MIDDLEWARE --- //
+
+function requireAuth(req, res, next) {
+        try {
+                const authHeader = req.headers.authorization;
+
+                if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                        return res.status(401).json({
+                                success: false,
+                                message: 'Authentication required'
+                        });
+                }
+
+                const token = authHeader.split(' ')[1];
+
+                const decoded = jwt.verify(token, JWT_SECRET);
+
+                req.user = decoded;
+
+                next();
+
+        } catch (err) {
+                return res.status(401).json({
+                        success: false,
+                        message: 'Invalid or expired token'
+                });
+        }
+}
+
+// --- ADMIN-ONLY MIDDLEWARE --- //
+
+function requireAdmin(req, res, next) {
+        if (!req.user || req.user.role !== 'Admin') {
+                return res.status(403).json({
+                        success: false,
+                        message: 'Admin access required'
+                });
+        }
+
+        next();
+}
 
 // ---  DATABASE CONNECTION ---//
 
@@ -103,7 +148,7 @@ app.get('/api/items', async (req, res) => {
 });
 
 
-app.post('/api/items/seed', async (req, res) => {
+app.post('/api/items/seed', requireAuth, requireAdmin, async (req, res) => {
         try {
                 await Item.deleteMany({});
 
