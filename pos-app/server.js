@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -27,35 +28,46 @@ if (!MONGO_URI) {
 // --- 1. AUTHENTICATION ROUTE --- //
 
 app.post('/api/auth/login', async (req, res) => {
-        const { username, password } = req.body;
-
         try {
-                // Existing cashier login
-                if (username === 'cashier' && password === '1234') {
-                        return res.json({
-                                success: true,
-                                user: {
-                                        username,
-                                        role: 'Cashier'
-                                }
+                const { username, password } = req.body;
+
+                // Check that both fields were provided
+                if (!username || !password) {
+                        return res.status(400).json({
+                                success: false,
+                                message: 'Username and password are required'
                         });
                 }
 
-                // MongoDB user login
+                // Find user by username only
                 const user = await User.findOne({
-                        username,
-                        password
+                        username: username.trim()
                 });
 
                 if (!user) {
                         return res.status(401).json({
                                 success: false,
-                                message: 'Invalid credentials'
+                                message: 'Invalid username or password'
                         });
                 }
 
-                res.json({
+                // Compare entered password with hashed password
+                const passwordMatch = await bcrypt.compare(
+                        password,
+                        user.password
+                );
+
+                if (!passwordMatch) {
+                        return res.status(401).json({
+                                success: false,
+                                message: 'Invalid username or password'
+                        });
+                }
+
+                // Successful login
+                return res.json({
                         success: true,
+                        message: 'Login successful',
                         user: {
                                 username: user.username,
                                 role: user.role
@@ -65,8 +77,9 @@ app.post('/api/auth/login', async (req, res) => {
         } catch (err) {
                 console.error('Login error:', err);
 
-                res.status(500).json({
-                        error: err.message
+                return res.status(500).json({
+                        success: false,
+                        message: 'Server error during login'
                 });
         }
 });
@@ -115,15 +128,17 @@ app.post('/api/items/seed', async (req, res) => {
                                 price: 250,
                                 stock: 50
                         },
-                        {       name: 'milk',
+                        {
+                                name: 'milk',
                                 price: 800,
                                 stock: 19
                         },
-                        {       name: 'spaghetti',
+                        {
+                                name: 'spaghetti',
                                 price: 1800,
                                 stock: 70
-                        }    
-                
+                        }
+
                 ];
 
                 await Item.insertMany(defaultItems);
@@ -253,17 +268,44 @@ async function createAdmin() {
 
                 if (!existingUser) {
 
+                        const hashedPassword = await bcrypt.hash(
+                                'pass123',
+                                10
+                        );
+
                         await User.create({
                                 username: 'CHIZITELUM',
-                                password: 'pass123'
+                                password: hashedPassword,
+                                role: 'Admin'
                         });
 
                         console.log('Admin user created successfully!');
 
                 } else {
 
-                        console.log('Admin user already exists.');
+                        // If the existing password is still plain text,
+                        // convert it to a bcrypt hash.
+                        if (!existingUser.password.startsWith('$2')) {
 
+                                existingUser.password = await bcrypt.hash(
+                                        existingUser.password,
+                                        10
+                                );
+
+                                existingUser.role = 'Admin';
+
+                                await existingUser.save();
+
+                                console.log(
+                                        'Existing admin password securely hashed.'
+                                );
+
+                        } else {
+
+                                console.log(
+                                        'Admin user already exists and password is secure.'
+                                );
+                        }
                 }
 
         } catch (err) {
@@ -333,8 +375,8 @@ const frontendPath = path.join(__dirname, '../client/pos/dist');
 app.use(express.static(frontendPath));
 
 app.use((req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-    }); 
+        res.sendFile(path.join(frontendPath, 'index.html'));
+});
 const PORT = process.env.PORT || 10000;
 
 async function startServer() {
