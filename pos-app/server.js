@@ -12,11 +12,11 @@ const Transaction = require('./models/Transaction');
 
 const app = express();
 
-app.use(express.json()); 
+app.use(express.json());
 app.use(cors());
 
 const JWT_SECRET =
-process.env.JWT_SECRET;
+        process.env.JWT_SECRET;
 
 // --- AUTHENTICATION MIDDLEWARE --- //
 
@@ -109,16 +109,29 @@ app.post('/api/auth/login', async (req, res) => {
                         });
                 }
 
+                // Create JWT token
+                const token = jwt.sign(
+                        {
+                                userId: user._id,
+                                username: user.username,
+                                role: user.role
+                        },
+                        JWT_SECRET,
+                        {
+                                expiresIn: '1d'
+                        }
+                );
+
                 // Successful login
                 return res.json({
                         success: true,
                         message: 'Login successful',
+                        token,
                         user: {
                                 username: user.username,
                                 role: user.role
                         }
                 });
-
         } catch (err) {
                 console.error('Login error:', err);
 
@@ -132,7 +145,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 // --- 2. ITEMS / INVENTORY ROUTES --- //
 
-app.get('/api/items', async (req, res) => {
+app.get('/api/items', requireAuth, async (req, res) => {
         try {
                 const items = await Item.find();
 
@@ -204,7 +217,7 @@ app.post('/api/items/seed', requireAuth, requireAdmin, async (req, res) => {
 
 // --- 3. CHECKOUT & TRANSACTIONS ROUTES --- //
 
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', requireAuth, async (req, res) => {
         const {
                 cashierName,
                 items,
@@ -235,7 +248,7 @@ app.post('/api/transactions', async (req, res) => {
 });
 
 
-app.get('/api/transactions', async (req, res) => {
+app.get('/api/transactions', requireAuth, async (req, res) => {
         try {
                 const transactions = await Transaction
                         .find()
@@ -255,7 +268,7 @@ app.get('/api/transactions', async (req, res) => {
 
 // --- 4. DAILY REPORTS ROUTE --- //
 
-app.get('/api/reports/daily', async (req, res) => {
+app.get('/api/reports/daily', requireAuth, async (req, res) => {
         try {
                 const startOfDay = new Date();
 
