@@ -354,6 +354,63 @@ async function createAdmin() {
         }
 }
 
+// --- 5B CREATE CASHIER — ADMIN ONLY
+app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
+        try {
+                const { username, password } = req.body;
+
+                if (!username || !password) {
+                        return res.status(400).json({
+                                success: false,
+                                message: 'Username and password are required'
+                        });
+                }
+
+                if (password.length < 4) {
+                        return res.status(400).json({
+                                success: false,
+                                message: 'Password must be at least 4 characters'
+                        });
+                }
+
+                const existingUser = await User.findOne({
+                        username: username.trim()
+                });
+
+                if (existingUser) {
+                        return res.status(409).json({
+                                success: false,
+                                message: 'Username already exists'
+                        });
+                }
+
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                const cashier = await User.create({
+                        username: username.trim(),
+                        password: hashedPassword,
+                        role: 'Cashier'
+                });
+
+                res.status(201).json({
+                        success: true,
+                        message: 'Cashier created successfully',
+                        user: {
+                                username: cashier.username,
+                                role: cashier.role
+                        }
+                });
+
+        } catch (err) {
+                console.error('Create cashier error:', err);
+
+                res.status(500).json({
+                        success: false,
+                        message: 'Server error creating cashier'
+                });
+        }
+});
+
 // --- 6. SEED DEFAULT ITEMS --- //
 
 async function seedItems() {

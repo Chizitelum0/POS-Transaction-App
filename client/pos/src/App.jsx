@@ -15,6 +15,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [cashierUsername, setCashierUsername] = useState('');
+  const [cashierPassword, setCashierPassword] = useState('');
+  const [cashierMessage, setCashierMessage] = useState('');
+
   // Restore saved user
   useEffect(() => {
     if (token && !user) {
@@ -205,6 +209,38 @@ export default function App() {
       alert(err.message || 'Failed to load daily report');
     }
   };
+  // Create Cashier — Admin only
+  const createCashier = async (e) => {
+    e.preventDefault();
+    setCashierMessage('');
+
+    try {
+      const res = await fetch(`${API_BASE}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: cashierUsername,
+          password: cashierPassword
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to create cashier');
+      }
+
+      setCashierMessage('Cashier created successfully!');
+      setCashierUsername('');
+      setCashierPassword('');
+
+    } catch (err) {
+      setCashierMessage(err.message || 'Failed to create cashier');
+    }
+  };
 
   // Logout
   const handleLogout = () => {
@@ -333,12 +369,87 @@ export default function App() {
 
         <div>
           {user.role === 'Admin' && (
-          <button
-            onClick={fetchReport}
-            style={styles.secondaryBtn}
-          >
-            Daily Report
-          </button>
+            <button
+              onClick={fetchReport}
+              style={styles.secondaryBtn}
+            >
+              Daily Report
+            </button>
+          )}
+
+          {user.role === 'Admin' && (
+            <div style={{
+              marginTop: '15px',
+              padding: '20px',
+              background: '#ffffff',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ marginTop: 0 }}>
+                Admin Controls
+              </h3>
+
+              <h4>Create Cashier</h4>
+
+              <form onSubmit={createCashier}>
+
+                <input
+                  type="text"
+                  placeholder="Cashier username"
+                  value={cashierUsername}
+                  onChange={(e) => setCashierUsername(e.target.value)}
+                  required
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '12px',
+                    marginBottom: '10px',
+                    boxSizing: 'border-box',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1'
+                  }}
+                />
+
+                <input
+                  type="password"
+                  placeholder="Cashier password"
+                  value={cashierPassword}
+                  onChange={(e) => setCashierPassword(e.target.value)}
+                  required
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '12px',
+                    marginBottom: '10px',
+                    boxSizing: 'border-box',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1'
+                  }}
+                />
+
+                <button
+                  type="submit"
+                  style={{
+                    padding: '12px 20px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: '#2563eb',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Create Cashier
+                </button>
+
+              </form>
+
+              {cashierMessage && (
+                <p style={{ marginTop: '10px' }}>
+                  {cashierMessage}
+                </p>
+              )}
+            </div>
           )}
 
           <button
@@ -713,3 +824,4 @@ const styles = {
     marginBottom: '16px',
   },
 };
+  
