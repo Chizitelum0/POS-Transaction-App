@@ -331,12 +331,14 @@ export default function App() {
         </div>
 
         <div>
+          {user.role === 'Admin' && (
           <button
             onClick={fetchReport}
             style={styles.secondaryBtn}
           >
             Daily Report
           </button>
+          )}
 
           <button
             onClick={handleLogout}

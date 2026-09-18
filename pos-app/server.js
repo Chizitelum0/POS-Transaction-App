@@ -33,7 +33,7 @@ function requireAuth(req, res, next) {
 
                 const token = authHeader.split(' ')[1];
 
-                const decoded = jwt.verify(token, JWT_SECRET);
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
                 req.user = decoded;
 
@@ -50,7 +50,14 @@ function requireAuth(req, res, next) {
 // --- ADMIN-ONLY MIDDLEWARE --- //
 
 function requireAdmin(req, res, next) {
-        if (!req.user || req.user.role !== 'Admin') {
+        if (!req.user) {
+                return res.status(401).json({
+                        success: false,
+                        message: 'Authentication required'
+                });
+        }
+
+        if (req.user.role !== 'Admin') {
                 return res.status(403).json({
                         success: false,
                         message: 'Admin access required'
@@ -116,9 +123,9 @@ app.post('/api/auth/login', async (req, res) => {
                                 username: user.username,
                                 role: user.role
                         },
-                        JWT_SECRET,
+                        process.env.JWT_SECRET,
                         {
-                                expiresIn: '1d'
+                                expiresIn: '8h'
                         }
                 );
 
@@ -126,7 +133,7 @@ app.post('/api/auth/login', async (req, res) => {
                 return res.json({
                         success: true,
                         message: 'Login successful',
-                        token,
+                        token: token,
                         user: {
                                 username: user.username,
                                 role: user.role
@@ -268,7 +275,7 @@ app.get('/api/transactions', requireAuth, async (req, res) => {
 
 // --- 4. DAILY REPORTS ROUTE --- //
 
-app.get('/api/reports/daily', requireAuth, async (req, res) => {
+app.get('/api/reports/daily', requireAuth, requireAdmin, async (req, res) => {
         try {
                 const startOfDay = new Date();
 
