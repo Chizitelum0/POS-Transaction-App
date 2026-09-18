@@ -332,11 +332,7 @@ async function createAdmin() {
                 });
 
                 if (!existingUser) {
-
-                        const hashedPassword = await bcrypt.hash(
-                                'pass123',
-                                10
-                        );
+                        const hashedPassword = await bcrypt.hash('pass123', 10);
 
                         await User.create({
                                 username: 'CHIZITELUM',
@@ -345,44 +341,18 @@ async function createAdmin() {
                         });
 
                         console.log('Admin user created successfully!');
-
                 } else {
+                        existingUser.role = 'Admin';
 
-                        // If the existing password is still plain text,
-                        // convert it to a bcrypt hash.
-                        if (!existingUser.password.startsWith('$2')) {
+                        await existingUser.save();
 
-                                existingUser.password = await bcrypt.hash(
-                                        existingUser.password,
-                                        10
-                                );
-
-                                existingUser.role = 'Admin';
-
-                                await existingUser.save();
-
-                                console.log(
-                                        'Existing admin password securely hashed.'
-                                );
-
-                        } else {
-
-                                console.log(
-                                        'Admin user already exists and password is secure.'
-                                );
-                        }
+                        console.log('CHIZITELUM is now an Admin.');
                 }
-
         } catch (err) {
-                console.error(
-                        'Error creating admin user:',
-                        err.message
-                );
-
+                console.error('Error creating admin user:', err);
                 throw err;
         }
 }
-
 
 // --- 6. SEED DEFAULT ITEMS --- //
 
@@ -431,6 +401,7 @@ async function seedItems() {
                 throw err;
         }
 }
+
 
 
 // --- 7. START SERVER --- //

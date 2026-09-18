@@ -326,7 +326,8 @@ export default function App() {
             }}
           >
             Cashier:{' '}
-            <strong>{user.username}</strong>
+            Role: <strong>{user.role}</strong> |
+            User: <strong>{user.username}</strong>
           </span>
         </div>
 
