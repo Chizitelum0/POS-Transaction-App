@@ -168,6 +168,60 @@ app.get('/api/items', requireAuth, async (req, res) => {
 });
 
 
+app.post('/api/items', requireAuth, requireAdmin, async (req, res) => {
+        try {
+                const { name, price, stock } = req.body;
+
+                if (!name || !name.trim()) {
+                        return res.status(400).json({
+                                success: false,
+                                message: 'Product name is required'
+                        });
+                }
+
+                const productPrice = Number(price);
+                const productStock = Number(stock);
+
+                if (!Number.isFinite(productPrice) || productPrice < 0) {
+                        return res.status(400).json({
+                                success: false,
+                                message: 'Enter a valid product price'
+                        });
+                }
+
+                if (
+                        !Number.isInteger(productStock) ||
+                        productStock < 0
+                ) {
+                        return res.status(400).json({
+                                success: false,
+                                message: 'Stock must be a whole number of zero or more'
+                        });
+                }
+
+                const item = await Item.create({
+                        name: name.trim(),
+                        price: productPrice,
+                        stock: productStock
+                });
+
+                res.status(201).json({
+                        success: true,
+                        message: 'Product added successfully',
+                        item
+                });
+        } catch (err) {
+                console.error('Add product error:', err);
+
+                res.status(500).json({
+                        success: false,
+                        message: 'Failed to add product'
+                });
+        }
+});
+
+
+
 app.post('/api/items/seed', requireAuth, requireAdmin, async (req, res) => {
         try {
                 await Item.deleteMany({});

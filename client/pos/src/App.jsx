@@ -10,6 +10,12 @@ export default function App() {
   const [password, setPassword] = useState('');
 
   const [items, setItems] = useState([]);
+
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductPrice, setNewProductPrice] = useState('');
+  const [newProductStock, setNewProductStock] = useState('');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [report, setReport] = useState(null);
@@ -21,6 +27,8 @@ export default function App() {
   const [cashierUsername, setCashierUsername] = useState('');
   const [cashierPassword, setCashierPassword] = useState('');
   const [cashierMessage, setCashierMessage] = useState('');
+
+  const [lastReceipt, setLastReceipt] = useState(null);
 
   // Restore saved user
   useEffect(() => {
@@ -59,6 +67,69 @@ export default function App() {
       setError(err.message || 'Failed to load items from server.');
     }
   };
+
+
+  // Add a new product to inventory
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+
+    const price = Number(newProductPrice);
+    const stock = Number(newProductStock);
+
+    if (!newProductName.trim()) {
+      setError('Enter a product name.');
+      return;
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      setError('Enter a valid selling price.');
+      return;
+    }
+
+    if (!Number.isInteger(stock) || stock < 0) {
+      setError('Stock must be a whole number of zero or more.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newProductName.trim(),
+          price,
+          stock,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to add product.');
+      }
+
+      setNewProductName('');
+      setNewProductPrice('');
+      setNewProductStock('');
+      setShowAddProduct(false);
+
+      await fetchItems();
+
+      setNotice('Product added successfully!');
+    } catch (err) {
+      setError(err.message || 'Failed to add product.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // Login
   const handleLogin = async (e) => {
@@ -138,11 +209,312 @@ export default function App() {
     );
   };
 
+
+  // Business receipt settings
+  const getBusinessProfile = () => {
+    try {
+      return JSON.parse(
+        localStorage.getItem('posBusinessProfile') || '{}'
+      );
+    } catch {
+      return {};
+    }
+  };
+
+  // Escape text before inserting it into the receipt HTML
+  const escapeReceiptText = (value) => {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => {
+      const entities = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      };
+
+      return entities[char];
+    });
+  };
+
+  // Format prices in Nigerian naira
+  const formatReceiptMoney = (amount) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+    }).format(Number(amount) || 0);
+  };
+
+  // Print receipt
+  const printReceipt = (receipt, receiptWindow) => {
+    if (!receipt || !receiptWindow || receiptWindow.closed) {
+      alert('Receipt is ready, but the print window is unavailable.');
+      return;
+    }
+
+    const business = getBusinessProfile();
+
+    const businessName = business.businessName || 'YOUR BUSINESS NAME';
+    const businessAddress = business.address || '';
+    const businessPhone = business.phone || '';
+
+    const itemsHtml = receipt.items
+      .map((item) => {
+        const name = escapeReceiptText(item.name);
+        const quantity = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const lineTotal = price * quantity;
+
+        return `
+          <tr>
+            <td class="item-name">${name}</td>
+            <td class="number">${quantity}</td>
+            <td class="number">${escapeReceiptText(
+          formatReceiptMoney(price)
+        )}</td>
+            <td class="number">${escapeReceiptText(
+          formatReceiptMoney(lineTotal)
+        )}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    receiptWindow.document.open();
+
+    receiptWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Sales Receipt</title>
+
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 3mm;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              width: 74mm;
+              margin: 0 auto;
+              padding: 2mm 0;
+              color: #000;
+              background: #fff;
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              line-height: 1.4;
+            }
+
+            .center {
+              text-align: center;
+            }
+
+            .business-name {
+              margin: 0 0 5px;
+              font-size: 18px;
+              font-weight: bold;
+              overflow-wrap: anywhere;
+            }
+
+            .muted {
+              font-size: 10px;
+              overflow-wrap: anywhere;
+            }
+
+            .receipt-title {
+              margin: 10px 0;
+              font-size: 13px;
+              font-weight: bold;
+              letter-spacing: 1px;
+            }
+
+            .divider {
+              border-top: 1px dashed #000;
+              margin: 9px 0;
+            }
+
+            .details p {
+              margin: 3px 0;
+              overflow-wrap: anywhere;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+              font-size: 9px;
+            }
+
+            th {
+              padding: 5px 1px;
+              border-bottom: 1px solid #000;
+              text-align: left;
+            }
+
+            td {
+              padding: 6px 1px;
+              vertical-align: top;
+              overflow-wrap: anywhere;
+            }
+
+            th:first-child,
+            td:first-child {
+              width: 34%;
+            }
+
+            th:nth-child(2),
+            td:nth-child(2) {
+              width: 10%;
+            }
+
+            th:nth-child(3),
+            td:nth-child(3) {
+              width: 26%;
+            }
+
+            th:nth-child(4),
+            td:nth-child(4) {
+              width: 30%;
+            }
+
+            .number {
+              text-align: right;
+              word-break: break-word;
+            }
+
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              gap: 8px;
+              font-size: 14px;
+              font-weight: bold;
+            }
+
+            .footer {
+              margin-top: 15px;
+              text-align: center;
+            }
+
+            @media print {
+              body {
+                width: 74mm;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <header class="center">
+            <h1 class="business-name">${escapeReceiptText(
+      businessName
+    )}</h1>
+
+            ${businessAddress
+        ? `<div class="muted">${escapeReceiptText(
+          businessAddress
+        )}</div>`
+        : ''
+      }
+
+            ${businessPhone
+        ? `<div class="muted">Tel: ${escapeReceiptText(
+          businessPhone
+        )}</div>`
+        : ''
+      }
+
+            <div class="receipt-title">SALES RECEIPT</div>
+          </header>
+
+          <div class="divider"></div>
+
+          <section class="details">
+            <p>
+              <strong>Receipt No:</strong>
+              ${escapeReceiptText(receipt.receiptNumber)}
+            </p>
+
+            <p>
+              <strong>Date:</strong>
+              ${escapeReceiptText(
+        new Date(receipt.timestamp).toLocaleString('en-NG')
+      )}
+            </p>
+
+            <p>
+              <strong>Cashier:</strong>
+              ${escapeReceiptText(receipt.cashierName)}
+            </p>
+          </section>
+
+          <div class="divider"></div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="number">Qty</th>
+                <th class="number">Price</th>
+                <th class="number">Total</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div class="divider"></div>
+
+          <div class="total-row">
+            <span>GRAND TOTAL</span>
+            <span>${escapeReceiptText(
+        formatReceiptMoney(receipt.totalAmount)
+      )}</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <footer class="footer">
+            <p><strong>Thank you for your patronage!</strong></p>
+            <p>Please come again.</p>
+          </footer>
+
+          <script>
+            window.onload = function () {
+              setTimeout(function () {
+                window.focus();
+                window.print();
+              }, 300);
+            };
+          <\/script>
+        </body>
+      </html>
+    `);
+
+    receiptWindow.document.close();
+  };
+
+
+
   // Checkout
   const handleCheckout = async () => {
     if (cart.length === 0) {
       return alert('Cart is empty');
     }
+
+    // Open the window during the click so the browser is less
+    // likely to block printing after the server responds.
+    const receiptWindow = window.open(
+      '',
+      '_blank',
+      'width=400,height=700'
+    );
 
     setLoading(true);
 
@@ -150,6 +522,12 @@ export default function App() {
       (sum, item) => sum + item.price * item.quantity,
       0
     );
+
+    const receiptItems = cart.map((item) => ({
+      name: item.name,
+      price: Number(item.price),
+      quantity: Number(item.quantity),
+    }));
 
     try {
       const res = await fetch(`${API_BASE}/transactions`, {
@@ -160,7 +538,7 @@ export default function App() {
         },
         body: JSON.stringify({
           cashierName: user.username,
-          items: cart,
+          items: receiptItems,
           totalAmount,
         }),
       });
@@ -172,10 +550,43 @@ export default function App() {
       }
 
       if (data.success) {
+        const transaction =
+          data.transaction || data.data || {};
+
+        const receipt = {
+          receiptNumber:
+            transaction._id ||
+            data.transactionId ||
+            data._id ||
+            `POS-${Date.now()}`,
+          cashierName: user.username,
+          items: receiptItems,
+          totalAmount,
+          timestamp: transaction.timestamp || new Date().toISOString(),
+        };
+
+        setLastReceipt(receipt);
+
         alert('Transaction completed successfully!');
+
         setCart([]);
+
+        if (receiptWindow) {
+          printReceipt(receipt, receiptWindow);
+        } else {
+          alert(
+            'Sale saved successfully. Allow pop-ups in your browser to print the receipt.'
+          );
+        }
+      } else {
+        if (receiptWindow) receiptWindow.close();
+        throw new Error('Transaction could not be completed');
       }
     } catch (err) {
+      if (receiptWindow && !receiptWindow.closed) {
+        receiptWindow.close();
+      }
+
       alert(err.message || 'Checkout failed.');
     } finally {
       setLoading(false);
@@ -348,6 +759,17 @@ export default function App() {
         <div style={styles.productsSection}>
           <div style={styles.catalogHeader}>
             <h3 style={styles.sectionTitle}>Available Items</h3>
+
+            {user.role === 'Admin' && (
+              <button
+                type="button"
+                onClick={() => setShowAddProduct(!showAddProduct)}
+                style={styles.adminBtn}
+              >
+                + Add Product
+              </button>
+            )}
+
             <input
               type="text"
               placeholder="🔍 Search items..."
@@ -356,6 +778,72 @@ export default function App() {
               style={styles.searchInput}
             />
           </div>
+
+          {showAddProduct && user.role === 'Admin' && (
+            <form
+              onSubmit={handleAddProduct}
+              style={{
+                padding: '16px',
+                marginBottom: '16px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                display: 'grid',
+                gap: '12px',
+              }}
+            >
+              <h3 style={{ margin: 0 }}>Add New Product</h3>
+
+              <input
+                type="text"
+                placeholder="Product name"
+                value={newProductName}
+                onChange={(e) => setNewProductName(e.target.value)}
+                style={styles.searchInput}
+                required
+              />
+
+              <input
+                type="number"
+                placeholder="Selling price (₦)"
+                value={newProductPrice}
+                onChange={(e) => setNewProductPrice(e.target.value)}
+                min="0"
+                step="0.01"
+                style={styles.searchInput}
+                required
+              />
+
+              <input
+                type="number"
+                placeholder="Stock quantity"
+                value={newProductStock}
+                onChange={(e) => setNewProductStock(e.target.value)}
+                min="0"
+                step="1"
+                style={styles.searchInput}
+                required
+              />
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="submit"
+                  style={styles.primaryBtn}
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Product'}
+                </button>
+
+                <button
+                  type="button"
+                  style={styles.secondaryBtn}
+                  onClick={() => setShowAddProduct(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
 
           <div style={styles.grid}>
             {filteredItems.map((item) => (
@@ -967,3 +1455,4 @@ const styles = {
     color: '#94a3b8',
   },
 };
+
