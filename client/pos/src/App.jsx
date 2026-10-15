@@ -23,6 +23,10 @@ export default function App() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
 
   const [cashierUsername, setCashierUsername] = useState('');
   const [cashierPassword, setCashierPassword] = useState('');
@@ -66,6 +70,38 @@ export default function App() {
     } catch (err) {
       setError(err.message || 'Failed to load items from server.');
     }
+  };
+
+
+  // Fetch saved transaction history
+  const fetchTransactions = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to load transaction history');
+      setTransactions(Array.isArray(data) ? data : []);
+      setShowHistoryModal(true);
+    } catch (err) {
+      setError(err.message || 'Failed to load transaction history.');
+    }
+  };
+
+  const reprintTransaction = (transaction) => {
+    const receiptWindow = window.open('', '_blank', 'width=400,height=700');
+    if (!receiptWindow) {
+      setError('Allow pop-ups in your browser to reprint receipts.');
+      return;
+    }
+    const receipt = {
+      receiptNumber: transaction._id || 'POS-RECEIPT',
+      cashierName: transaction.cashierName || 'Cashier',
+      items: Array.isArray(transaction.items) ? transaction.items : [],
+      totalAmount: Number(transaction.totalAmount) || 0,
+      timestamp: transaction.timestamp || transaction.createdAt || new Date().toISOString(),
+    };
+    printReceipt(receipt, receiptWindow);
   };
 
 
@@ -123,6 +159,7 @@ export default function App() {
       await fetchItems();
 
       setNotice('Product added successfully!');
+      setError('');
     } catch (err) {
       setError(err.message || 'Failed to add product.');
     } finally {
@@ -173,6 +210,17 @@ export default function App() {
   // Add item to cart
   const addToCart = (item) => {
     const existing = cart.find((i) => i.name === item.name);
+    const availableStock = Number(item.stock);
+
+    if (availableStock <= 0) {
+      setError(`${item.name} is out of stock.`);
+      return;
+    }
+    if (existing && existing.quantity >= availableStock) {
+      setError(`Only ${availableStock} unit(s) of ${item.name} are in stock.`);
+      return;
+    }
+    setError('');
 
     if (existing) {
       setCart(
@@ -524,6 +572,7 @@ export default function App() {
     );
 
     const receiptItems = cart.map((item) => ({
+      itemId: item._id,
       name: item.name,
       price: Number(item.price),
       quantity: Number(item.quantity),
@@ -658,6 +707,11 @@ export default function App() {
     setCart([]);
     setReport(null);
     setItems([]);
+    setTransactions([]);
+    setShowHistoryModal(false);
+    setShowAddProduct(false);
+    setError('');
+    setNotice('');
     setShowAdminModal(false);
     setShowReportModal(false);
   };
@@ -668,7 +722,7 @@ export default function App() {
   );
 
   const filteredItems = items.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    String(item.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // LOGIN VIEW
@@ -739,6 +793,9 @@ export default function App() {
               <button onClick={fetchReport} style={styles.secondaryBtn}>
                 📊 Daily Report
               </button>
+              <button onClick={fetchTransactions} style={styles.secondaryBtn}>
+                🧾 Transaction History
+              </button>
               <button
                 onClick={() => setShowAdminModal(true)}
                 style={styles.adminBtn}
@@ -753,6 +810,13 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {(error || notice) && (
+        <div style={{ padding: '0 28px', maxWidth: '1400px', margin: '12px auto 0' }}>
+          {error && <div style={styles.errorAlert}>{error}<button type="button" onClick={() => setError('')} style={{ float: 'right', border: 0, background: 'transparent', cursor: 'pointer' }}>✕</button></div>}
+          {notice && <div style={styles.infoAlert}>{notice}<button type="button" onClick={() => setNotice('')} style={{ float: 'right', border: 0, background: 'transparent', cursor: 'pointer' }}>✕</button></div>}
+        </div>
+      )}
 
       <div style={styles.mainLayout}>
         {/* Inventory / Items Catalog */}
@@ -856,7 +920,7 @@ export default function App() {
                 <div style={styles.productPrice}>
                   ₦{item.price ? item.price.toLocaleString() : '0'}
                 </div>
-                <div style={styles.tapToAdd}>+ Add to cart</div>
+                <div style={styles.tapToAdd}>{Number(item.stock) || 0} in stock · + Add to cart</div>
               </div>
             ))}
             {filteredItems.length === 0 && (
@@ -993,6 +1057,45 @@ export default function App() {
               {cashierMessage && (
                 <div style={styles.infoAlert}>{cashierMessage}</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TRANSACTION HISTORY MODAL */}
+      {showHistoryModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalCard, maxWidth: '900px', width: '95%' }}>
+            <div style={styles.modalHeader}>
+              <h3 style={{ margin: 0 }}>Transaction History</h3>
+              <button onClick={() => setShowHistoryModal(false)} style={styles.closeModalBtn}>✕</button>
+            </div>
+            <input
+              type="search"
+              placeholder="Search receipt number or cashier..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              style={{ ...styles.input, margin: '14px 0' }}
+            />
+            <div style={{ overflowX: 'auto', maxHeight: '55vh', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead><tr style={{ textAlign: 'left', background: '#f8fafc' }}>
+                  <th style={styles.tableCell}>Receipt</th><th style={styles.tableCell}>Date</th><th style={styles.tableCell}>Cashier</th><th style={styles.tableCell}>Items</th><th style={styles.tableCell}>Total</th><th style={styles.tableCell}>Action</th>
+                </tr></thead>
+                <tbody>
+                  {transactions.filter((tx) => `${tx._id || ''} ${tx.cashierName || ''}`.toLowerCase().includes(historySearch.toLowerCase())).map((tx) => (
+                    <tr key={tx._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={styles.tableCell}>{String(tx._id || '').slice(-8).toUpperCase()}</td>
+                      <td style={styles.tableCell}>{new Date(tx.timestamp || tx.createdAt).toLocaleString('en-NG')}</td>
+                      <td style={styles.tableCell}>{tx.cashierName || '—'}</td>
+                      <td style={styles.tableCell}>{Array.isArray(tx.items) ? tx.items.reduce((n, item) => n + (Number(item.quantity) || 0), 0) : 0}</td>
+                      <td style={styles.tableCell}>₦{(Number(tx.totalAmount) || 0).toLocaleString('en-NG')}</td>
+                      <td style={styles.tableCell}><button type="button" onClick={() => reprintTransaction(tx)} style={styles.secondaryBtn}>Reprint</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {transactions.length === 0 && <div style={styles.emptyState}>No transactions recorded yet.</div>}
             </div>
           </div>
         </div>
@@ -1420,6 +1523,8 @@ const styles = {
     cursor: 'pointer',
     color: '#64748b',
   },
+
+  tableCell: { padding: '10px 8px', borderBottom: '1px solid #e2e8f0', verticalAlign: 'top' },
 
   reportSummaryGrid: {
     display: 'grid',
