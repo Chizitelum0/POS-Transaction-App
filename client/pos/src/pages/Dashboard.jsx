@@ -70,7 +70,7 @@ export default function Dashboard({
       onNotice('Transaction completed successfully.');
       if (receiptWindow) {
         const { printReceipt } = await import('../utils/receipt');
-        printReceipt(receipt);
+        printReceipt(receipt, receiptWindow);
       }
     } catch (err) {
       if (receiptWindow && !receiptWindow.closed) receiptWindow.close();
