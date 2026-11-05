@@ -35,10 +35,6 @@ export const api = {
     unauthorizedHandler = handler;
   },
 
-  setUnauthorizedHandler: (handler) => {
-    unauthorizedHandler = handler;
-  },
-
   login: (username, password) =>
     request('/auth/login', {
       method: 'POST',
