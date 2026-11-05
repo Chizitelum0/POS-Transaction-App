@@ -1,29 +1,38 @@
-# POS-Transaction-App
+# POS Transaction App Documentation
 
-A simple, fast web POS that works on any phone. Built for small shops in Nigeria to handle checkout, receipts, sales tracking, and stock - even offline.
+This directory contains the technical documentation for the current implementation of the POS Transaction App.
 
-### Why this?
-Big POS hardware costs ₦300k+ and is complicated. Notebooks cause errors and theft. This works in Chrome on any phone/tablet/PC, no install needed.
+## Documentation map
 
-### Features (V1)
-- Fast checkout with product search
-- Cart, discounts, tax
-- Multiple payment methods: Cash, Transfer, Card, Mobile Money
-- Receipts: Print + WhatsApp
-- Offline mode: Sell without internet, syncs later
-- Sales history & daily report
-- Low stock alerts
+| Document | Purpose |
+|---|---|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Application architecture, request flow, and current limitations |
+| [API.md](./API.md) | HTTP endpoints, authentication requirements, request and response behaviour |
+| [DATABASE.md](./DATABASE.md) | MongoDB/Mongoose models and data relationships |
+| [AUTHENTICATION.md](./AUTHENTICATION.md) | Login, JWT authentication, roles, and password handling |
+| [TRANSACTIONS.md](./TRANSACTIONS.md) | Checkout, stock changes, transaction persistence, and failure recovery |
+| [INVENTORY.md](./INVENTORY.md) | Product management, stock rules, search, and seed data |
+| [RECEIPTS.md](./RECEIPTS.md) | 80 mm-style receipt printing, business profile, and reprinting |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Environment variables, frontend/backend deployment, and production considerations |
+| [DEVELOPMENT.md](./DEVELOPMENT.md) | Local development workflow, project structure, and useful commands |
 
-### Tech Stack
-- Frontend: React (App.jsx)
-- Backend: Supabase (Postgres, Auth, Realtime)
-- Offline: IndexedDB / localStorage
-- Deployment: Vercel / Netlify
+## Current implementation
 
-### Getting Started
+The application is currently a React/Vite frontend backed by an Express API and MongoDB through Mongoose.
 
-1. Clone
-```bash
-git clone https://github.com/Chizitelum0/pos-Transaction-app.git
-cd pos-Transaction-app
-npm install
+**Important:** These documents describe what the repository actually implements today. Planned improvements are clearly labelled as future work. Features such as offline synchronization, Supabase/PostgreSQL storage, WhatsApp receipt delivery, multiple payment methods, and low-stock alerts are not documented as current features because they are not implemented in the current codebase.
+
+## Project purpose
+
+The POS is a practical engineering and learning project focused on:
+
+- Backend API development
+- Authentication and authorization
+- Database modelling
+- Inventory operations
+- Transaction workflows
+- Error handling and rollback logic
+- Frontend/backend integration
+- Practical software architecture
+
+> Build the foundation correctly. Then build on it.
