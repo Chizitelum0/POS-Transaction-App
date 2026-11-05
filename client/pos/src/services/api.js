@@ -1,4 +1,5 @@
 const API_BASE = '/api';
+let unauthorizedHandler = null;
 
 async function request(path, options = {}) {
   const { token, ...fetchOptions } = options;
@@ -17,13 +18,17 @@ async function request(path, options = {}) {
   try { data = await response.json(); } catch { /* empty response */ }
 
   if (!response.ok) {
-    throw new Error(data.message || 'Request failed');
+    if (response.status === 401 && token) unauthorizedHandler?.();
+    const error = new Error(data.message || 'Request failed');
+    error.status = response.status;
+    throw error;
   }
 
   return data;
 }
 
 export const api = {
+  setUnauthorizedHandler: (handler) => { unauthorizedHandler = handler; },
   login: (username, password) =>
     request('/auth/login', {
       method: 'POST',
