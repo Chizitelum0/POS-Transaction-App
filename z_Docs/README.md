@@ -14,7 +14,6 @@ This directory contains the technical documentation for the current implementati
 | [INVENTORY.md](./INVENTORY.md) | Product management, stock rules, search, and seed data |
 | [RECEIPTS.md](./RECEIPTS.md) | 80 mm-style receipt printing, business profile, and reprinting |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Environment variables, frontend/backend deployment, and production considerations |
-| [DEVELOPMENT.md](./DEVELOPMENT.md) | Local development workflow, project structure, and useful commands |
 
 ## Current implementation
 
