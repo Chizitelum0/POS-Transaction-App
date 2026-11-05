@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from './services/api';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -23,9 +23,33 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    setCart([]);
+    setItems([]);
+    setTransactions([]);
+    setReport(null);
+    setSearch('');
+    setError('');
+    setNotice('');
+    setPage('pos');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }, []);
+
+  useEffect(() => {
+    api.setUnauthorizedHandler(logout);
+    return () => api.setUnauthorizedHandler(null);
+  }, [logout]);
+
   useEffect(() => {
     if (!token || !user) return;
-    api.getItems(token).then(setItems).catch((err) => setError(err.message));
+    api.getItems(token)
+      .then(setItems)
+      .catch((err) => {
+        if (err.status !== 401) setError(err.message);
+      });
   }, [token, user]);
 
   const login = async (username, password) => {
@@ -39,20 +63,14 @@ export default function App() {
     finally { setLoading(false); }
   };
 
-  const logout = () => {
-    setToken(null); setUser(null); setCart([]); setItems([]); setTransactions([]);
-    localStorage.removeItem('token'); localStorage.removeItem('user');
-    setPage('pos');
-  };
-
   const loadTransactions = async () => {
     try { setLoading(true); setTransactions(await api.getTransactions(token)); setPage('transactions'); }
-    catch (err) { setError(err.message); } finally { setLoading(false); }
+    catch (err) { if (err.status !== 401) setError(err.message); } finally { setLoading(false); }
   };
 
   const loadReport = async () => {
     try { setLoading(true); setReport(await api.getDailyReport(token)); setPage('reports'); }
-    catch (err) { setError(err.message); } finally { setLoading(false); }
+    catch (err) { if (err.status !== 401) setError(err.message); } finally { setLoading(false); }
   };
 
   if (!user || !token) return <Login onLogin={login} loading={loading} error={error} />;
