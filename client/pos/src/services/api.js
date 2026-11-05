@@ -18,7 +18,10 @@ async function request(path, options = {}) {
   try { data = await response.json(); } catch { /* empty response */ }
 
   if (!response.ok) {
-    if (response.status === 401 && token) unauthorizedHandler?.();
+    if (response.status === 401 && token) {
+      unauthorizedHandler?.();
+    }
+
     const error = new Error(data.message || 'Request failed');
     error.status = response.status;
     throw error;
@@ -28,7 +31,14 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  setUnauthorizedHandler: (handler) => { unauthorizedHandler = handler; },
+  setUnauthorizedHandler: (handler) => {
+    unauthorizedHandler = handler;
+  },
+
+  setUnauthorizedHandler: (handler) => {
+    unauthorizedHandler = handler;
+  },
+
   login: (username, password) =>
     request('/auth/login', {
       method: 'POST',
