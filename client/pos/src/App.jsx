@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from './services/api';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -23,7 +23,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     setCart([]);
@@ -36,12 +36,12 @@ export default function App() {
     setPage('pos');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-  };
+  }, []);
 
   useEffect(() => {
     api.setUnauthorizedHandler(logout);
     return () => api.setUnauthorizedHandler(null);
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -70,7 +70,7 @@ export default function App() {
 
   const loadReport = async () => {
     try { setLoading(true); setReport(await api.getDailyReport(token)); setPage('reports'); }
-    catch (err) { setError(err.message); } finally { setLoading(false); }
+    catch (err) { if (err.status !== 401) setError(err.message); } finally { setLoading(false); }
   };
 
   if (!user || !token) return <Login onLogin={login} loading={loading} error={error} />;
